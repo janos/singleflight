@@ -1,7 +1,7 @@
 # Singleflight
 
 [![GoDoc](https://godoc.org/resenje.org/singleflight?status.svg)](https://godoc.org/resenje.org/singleflight)
-[![Build Status](https://travis-ci.org/janos/singleflight.svg?branch=master)](https://travis-ci.org/janos/singleflight)
+[![Go](https://github.com/janos/singleflight/workflows/Go/badge.svg)](https://github.com/janos/singleflight/actions?query=workflow%3AGo)
 
 Package singleflight provides a duplicate function call suppression
 mechanism similar to golang.org/x/sync/singleflight but with support
