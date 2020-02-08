@@ -159,8 +159,11 @@ func TestDo_cancelContextSecond(t *testing.T) {
 		time.Sleep(time.Second)
 		return want, nil
 	}
-	go g.Do(context.Background(), "key", fn)
-
+	go func() {
+		if _, _, err := g.Do(context.Background(), "key", fn); err != nil {
+			panic(err)
+		}
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		time.Sleep(100 * time.Millisecond)
@@ -197,7 +200,11 @@ func TestForget(t *testing.T) {
 		return wantPrefix + strconv.FormatUint(c, 10), nil
 	}
 
-	go g.Do(context.Background(), "key", fn)
+	go func() {
+		if _, _, err := g.Do(context.Background(), "key", fn); err != nil {
+			panic(err)
+		}
+	}()
 
 	<-firstCall
 	g.Forget("key")
