@@ -20,15 +20,18 @@ type Group struct {
 	mu    sync.Mutex       // protects calls
 }
 
-// Do executes and returns the results of the given function, making
-// sure that only one execution is in-flight for a given key at a
-// time. If a duplicate comes in, the duplicate caller waits for the
-// original to complete and receives the same results.
-// Passed context terminates the execution of Do function, not the passed
-// function fn. If there are  multiple callers, context passed to one caller
-// does not effect the execution and returned values of others.
+// Do executes and returns the results of the given function, making sure that
+// only one execution is in-flight for a given key at a time. If a duplicate
+// comes in, the duplicate caller waits for the original to complete and
+// receives the same results.
+//
+// The context passed to the fn function is a new context which is canceled when
+// contexts from all callers are canceled, so that no caller is expecting the
+// result. If there are multiple callers, context passed to one caller does not
+// effect the execution and returned values of others.
+//
 // The return value shared indicates whether v was given to multiple callers.
-func (g *Group) Do(ctx context.Context, key string, fn func() (interface{}, error)) (v interface{}, shared bool, err error) {
+func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (v interface{}, shared bool, err error) {
 	g.mu.Lock()
 	if g.calls == nil {
 		g.calls = make(map[string]*call)
@@ -36,19 +39,24 @@ func (g *Group) Do(ctx context.Context, key string, fn func() (interface{}, erro
 
 	if c, ok := g.calls[key]; ok {
 		c.shared = true
+		c.counter++
 		g.mu.Unlock()
 
 		return g.wait(ctx, key, c)
 	}
 
+	callCtx, cancel := context.WithCancel(context.Background())
+
 	c := &call{
-		done: make(chan struct{}),
+		done:    make(chan struct{}),
+		cancel:  cancel,
+		counter: 1,
 	}
 	g.calls[key] = c
 	g.mu.Unlock()
 
 	go func() {
-		c.val, c.err = fn()
+		c.val, c.err = fn(callCtx)
 		close(c.done)
 	}()
 
@@ -65,6 +73,10 @@ func (g *Group) wait(ctx context.Context, key string, c *call) (v interface{}, s
 		err = ctx.Err()
 	}
 	g.mu.Lock()
+	c.counter--
+	if c.counter == 0 {
+		c.cancel()
+	}
 	if !c.forgotten {
 		delete(g.calls, key)
 	}
@@ -99,4 +111,9 @@ type call struct {
 
 	// shared indicates if results val and err are passed to multiple callers.
 	shared bool
+
+	// Number of callers that are waiting for the result.
+	counter int
+	// Cancel function for the context passed to the executing function.
+	cancel context.CancelFunc
 }
