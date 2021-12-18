@@ -15,8 +15,8 @@ import (
 
 // Group represents a class of work and forms a namespace in
 // which units of work can be executed with duplicate suppression.
-type Group struct {
-	calls map[string]*call // lazily initialized
+type Group[K comparable, V any] struct {
+	calls map[K]*call[V] // lazily initialized
 	mu    sync.Mutex       // protects calls
 }
 
@@ -31,10 +31,10 @@ type Group struct {
 // effect the execution and returned values of others.
 //
 // The return value shared indicates whether v was given to multiple callers.
-func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (v interface{}, shared bool, err error) {
+func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context) (V, error)) (v V, shared bool, err error) {
 	g.mu.Lock()
 	if g.calls == nil {
-		g.calls = make(map[string]*call)
+		g.calls = make(map[K]*call[V])
 	}
 
 	if c, ok := g.calls[key]; ok {
@@ -47,7 +47,7 @@ func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context)
 
 	callCtx, cancel := context.WithCancel(context.Background())
 
-	c := &call{
+	c := &call[V]{
 		done:    make(chan struct{}),
 		cancel:  cancel,
 		counter: 1,
@@ -64,7 +64,7 @@ func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context)
 }
 
 // wait for function passed to Do to finish or context to be done.
-func (g *Group) wait(ctx context.Context, key string, c *call) (v interface{}, shared bool, err error) {
+func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared bool, err error) {
 	select {
 	case <-c.done:
 		v = c.val
@@ -87,7 +87,7 @@ func (g *Group) wait(ctx context.Context, key string, c *call) (v interface{}, s
 // Forget tells the singleflight to forget about a key. Future calls
 // to Do for this key will call the function rather than waiting for
 // an earlier call to complete.
-func (g *Group) Forget(key string) {
+func (g *Group[K, V]) Forget(key K) {
 	g.mu.Lock()
 	if c, ok := g.calls[key]; ok {
 		c.forgotten = true
@@ -97,9 +97,9 @@ func (g *Group) Forget(key string) {
 }
 
 // call stores information about as single function call passed to Do function.
-type call struct {
+type call[V any] struct {
 	// val and err hold the state about results of the function call.
-	val interface{}
+	val V
 	err error
 
 	// done channel signals that the function call is done.

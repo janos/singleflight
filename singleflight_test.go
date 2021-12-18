@@ -22,10 +22,10 @@ import (
 )
 
 func TestDo(t *testing.T) {
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	want := "val"
-	got, shared, err := g.Do(context.Background(), "key", func(_ context.Context) (interface{}, error) {
+	got, shared, err := g.Do(context.Background(), "key", func(_ context.Context) (string, error) {
 		return want, nil
 	})
 	if err != nil {
@@ -40,21 +40,21 @@ func TestDo(t *testing.T) {
 }
 
 func TestDo_error(t *testing.T) {
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 	wantErr := errors.New("test error")
-	got, _, err := g.Do(context.Background(), "key", func(_ context.Context) (interface{}, error) {
-		return nil, wantErr
+	got, _, err := g.Do(context.Background(), "key", func(_ context.Context) (string, error) {
+		return "", wantErr
 	})
 	if err != wantErr {
 		t.Errorf("got error %v, want %v", err, wantErr)
 	}
-	if got != nil {
+	if got != "" {
 		t.Errorf("unexpected value %#v", got)
 	}
 }
 
 func TestDo_multipleCalls(t *testing.T) {
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	want := "val"
 	var counter int32
@@ -68,7 +68,7 @@ func TestDo_multipleCalls(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			got[i], shared[i], err[i] = g.Do(context.Background(), "key", func(_ context.Context) (interface{}, error) {
+			got[i], shared[i], err[i] = g.Do(context.Background(), "key", func(_ context.Context) (string, error) {
 				atomic.AddInt32(&counter, 1)
 				time.Sleep(100 * time.Millisecond)
 				return want, nil
@@ -95,11 +95,11 @@ func TestDo_multipleCalls(t *testing.T) {
 }
 
 func TestDo_callRemoval(t *testing.T) {
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	wantPrefix := "val"
 	counter := 0
-	fn := func(_ context.Context) (interface{}, error) {
+	fn := func(_ context.Context) (string, error) {
 		counter++
 		return wantPrefix + strconv.Itoa(counter), nil
 	}
@@ -131,7 +131,7 @@ func TestDo_cancelContext(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
 
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	want := "val"
 	ctx, cancel := context.WithCancel(context.Background())
@@ -140,7 +140,7 @@ func TestDo_cancelContext(t *testing.T) {
 		cancel()
 	}()
 	start := time.Now()
-	got, shared, err := g.Do(ctx, "key", func(_ context.Context) (interface{}, error) {
+	got, shared, err := g.Do(ctx, "key", func(_ context.Context) (string, error) {
 		select {
 		case <-time.After(time.Second):
 		case <-done:
@@ -156,7 +156,7 @@ func TestDo_cancelContext(t *testing.T) {
 	if shared {
 		t.Error("the value should not be shared")
 	}
-	if got != nil {
+	if got != "" {
 		t.Errorf("unexpected value %#v", got)
 	}
 }
@@ -165,10 +165,10 @@ func TestDo_cancelContextSecond(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
 
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	want := "val"
-	fn := func(_ context.Context) (interface{}, error) {
+	fn := func(_ context.Context) (string, error) {
 		select {
 		case <-time.After(time.Second):
 		case <-done:
@@ -196,7 +196,7 @@ func TestDo_cancelContextSecond(t *testing.T) {
 	if !shared {
 		t.Error("the value should be shared")
 	}
-	if got != nil {
+	if got != "" {
 		t.Errorf("unexpected value %#v", got)
 	}
 }
@@ -205,12 +205,12 @@ func TestForget(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
 
-	var g singleflight.Group
+	var g singleflight.Group[string, string]
 
 	wantPrefix := "val"
 	var counter uint64
 	firstCall := make(chan struct{})
-	fn := func(_ context.Context) (interface{}, error) {
+	fn := func(_ context.Context) (string, error) {
 		c := atomic.AddUint64(&counter, 1)
 		if c == 1 {
 			close(firstCall)
@@ -252,7 +252,7 @@ func TestDo_multipleCallsCanceled(t *testing.T) {
 			done := make(chan struct{})
 			defer close(done)
 
-			var g singleflight.Group
+			var g singleflight.Group[string, string]
 
 			var counter int32
 
@@ -271,7 +271,7 @@ func TestDo_multipleCallsCanceled(t *testing.T) {
 					contexts[i] = ctx
 					cancelFuncs[i] = cancel
 					mu.Unlock()
-					_, _, _ = g.Do(ctx, "key", func(ctx context.Context) (interface{}, error) {
+					_, _, _ = g.Do(ctx, "key", func(ctx context.Context) (string, error) {
 						atomic.AddInt32(&counter, 1)
 						close(fnCalled)
 						var err error
@@ -288,7 +288,7 @@ func TestDo_multipleCallsCanceled(t *testing.T) {
 
 						fnErrChan <- err
 
-						return nil, nil
+						return "", nil
 					})
 				}(i)
 			}
