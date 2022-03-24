@@ -15,7 +15,7 @@ jobs:
       uses: actions/setup-go@v2
       with:
         stable: 'false'
-        go-version: '1.18.0'
+        go-version: '1.18'
 
     - name: Checkout
       uses: actions/checkout@v1
@@ -32,12 +32,11 @@ jobs:
           ${{ runner.OS }}-build-
           ${{ runner.OS }}-
 
-    # todo: enable when go 1.18 is supported
-    # - name: Lint
-    #   uses: golangci/golangci-lint-action@v2
-    #   with:
-    #     version: v1.43.0
-    #     args: --timeout 10m
+    - name: Lint
+      uses: golangci/golangci-lint-action@v2
+      with:
+        version: v1.45.1
+        args: --timeout 10m
 
     - name: Vet
       if: matrix.os == 'ubuntu-latest'
