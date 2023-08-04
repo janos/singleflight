@@ -17,7 +17,7 @@ import (
 // which units of work can be executed with duplicate suppression.
 type Group[K comparable, V any] struct {
 	calls map[K]*call[V] // lazily initialized
-	mu    sync.Mutex       // protects calls
+	mu    sync.Mutex     // protects calls
 }
 
 // Do executes and returns the results of the given function, making sure that
@@ -76,9 +76,9 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 	c.counter--
 	if c.counter == 0 {
 		c.cancel()
-	}
-	if !c.forgotten {
-		delete(g.calls, key)
+		if !c.forgotten {
+			delete(g.calls, key)
+		}
 	}
 	g.mu.Unlock()
 	return v, c.shared, err
