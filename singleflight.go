@@ -5,7 +5,7 @@
 
 // Package singleflight provides a duplicate function call suppression
 // mechanism similar to golang.org/x/sync/singleflight with support
-// for context cancelation.
+// for context cancellation.
 package singleflight
 
 import (
