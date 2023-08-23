@@ -5,7 +5,7 @@
 
 // Package singleflight provides a duplicate function call suppression
 // mechanism similar to golang.org/x/sync/singleflight with support
-// for context cancelation.
+// for context cancellation.
 package singleflight
 
 import (
@@ -76,8 +76,6 @@ func (g *Group) wait(ctx context.Context, key string, c *call) (v interface{}, s
 	c.counter--
 	if c.counter == 0 {
 		c.cancel()
-	}
-	if !c.forgotten {
 		delete(g.calls, key)
 	}
 	g.mu.Unlock()
@@ -89,9 +87,6 @@ func (g *Group) wait(ctx context.Context, key string, c *call) (v interface{}, s
 // an earlier call to complete.
 func (g *Group) Forget(key string) {
 	g.mu.Lock()
-	if c, ok := g.calls[key]; ok {
-		c.forgotten = true
-	}
 	delete(g.calls, key)
 	g.mu.Unlock()
 }
@@ -104,10 +99,6 @@ type call struct {
 
 	// done channel signals that the function call is done.
 	done chan struct{}
-
-	// forgotten indicates whether Forget was called with this call's key
-	// while the call was still in flight.
-	forgotten bool
 
 	// shared indicates if results val and err are passed to multiple callers.
 	shared bool

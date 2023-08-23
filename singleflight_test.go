@@ -201,6 +201,58 @@ func TestDo_cancelContextSecond(t *testing.T) {
 	}
 }
 
+func TestDo_callDoAfterCancellation(t *testing.T) {
+	done := make(chan struct{})
+	defer close(done)
+
+	var g singleflight.Group
+
+	callCounter := new(atomic.Uint64)
+	fn := func(_ context.Context) (interface{}, error) {
+		callCounter.Add(1)
+		select {
+		case <-time.After(time.Second):
+		case <-done:
+		}
+		return "", nil
+	}
+
+	go func() {
+		// keep the function call active for long period (1 second)
+		if _, _, err := g.Do(context.Background(), "key", fn); err != nil {
+			panic(err)
+		}
+	}()
+
+	{ // make another call that is canceled shortly (100 milliseconds)
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+		_, _, err := g.Do(ctx, "key", fn)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal(err)
+		}
+	}
+
+	want := uint64(1)
+
+	if got := callCounter.Load(); got != want {
+		t.Errorf("got call counter %v, want %v", got, want)
+	}
+
+	{ // make another call after the previous call cancellation
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+		_, _, err := g.Do(ctx, "key", fn)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal(err)
+		}
+	}
+
+	if got := callCounter.Load(); got != want {
+		t.Errorf("got call counter %v, want %v", got, want)
+	}
+}
+
 func TestForget(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)
