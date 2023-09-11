@@ -393,6 +393,26 @@ func TestDo_multipleCallsCanceled(t *testing.T) {
 	}
 }
 
+func TestDo_preserveContextValues(t *testing.T) {
+	var g singleflight.Group[string, any]
+
+	type KeyType string
+	const key KeyType = "foo"
+
+	callerCtx := context.WithValue(context.Background(), key, "bar")
+
+	val, _, err := g.Do(callerCtx, "key", func(ctx context.Context) (any, error) {
+		return ctx.Value(key), nil
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if val != "bar" {
+		t.Error("the context should not lose the values")
+	}
+}
+
 func waitStacks(t *testing.T, loc string, count int, timeout time.Duration) {
 	t.Helper()
 

@@ -25,10 +25,12 @@ type Group[K comparable, V any] struct {
 // comes in, the duplicate caller waits for the original to complete and
 // receives the same results.
 //
-// The context passed to the fn function is a new context which is canceled when
-// contexts from all callers are canceled, so that no caller is expecting the
-// result. If there are multiple callers, context passed to one caller does not
-// effect the execution and returned values of others.
+// The context passed to the fn function is a context that preserves all values
+// from the passed context but is cancelled by the singleflight only when all
+// awaiting caller's contexts are cancelled (no caller is awaiting the result).
+// If there are multiple callers, context passed to one caller does not affect
+// the execution and returned values of others except if the function result is
+// dependent on the context values.
 //
 // The return value shared indicates whether v was given to multiple callers.
 func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context) (V, error)) (v V, shared bool, err error) {
@@ -45,7 +47,9 @@ func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context
 		return g.wait(ctx, key, c)
 	}
 
-	callCtx, cancel := context.WithCancel(context.Background())
+	// Replace cancellation from the user context with a cancellation
+	// controlled by the singleflight and preserve context values.
+	callCtx, cancel := context.WithCancel(withoutCancel(ctx))
 
 	c := &call[V]{
 		done:    make(chan struct{}),
