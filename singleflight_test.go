@@ -39,6 +39,34 @@ func TestDo(t *testing.T) {
 	}
 }
 
+func TestDo_concurrentAccess(t *testing.T) {
+	var g singleflight.Group[string, string]
+
+	want := "val"
+	key := "key"
+	var wg sync.WaitGroup
+	n := 100
+
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			got, shared, err := g.Do(context.Background(), key, func(_ context.Context) (string, error) {
+				return want, nil
+			})
+			if err != nil {
+				t.Error(err)
+			}
+			_ = shared // read the shared to test the concurrent access
+			if got != want {
+				t.Errorf("got value %v, want %v", got, want)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}(i)
+	}
+	wg.Wait()
+}
+
 func TestDo_error(t *testing.T) {
 	var g singleflight.Group[string, string]
 	wantErr := errors.New("test error")
