@@ -5,8 +5,6 @@ run:
 linters:
   enable:
     - errname
-#    - gofmt
-    - goimports
     - stylecheck
     - importas
     - errcheck
@@ -26,6 +24,9 @@ linters:
     - exhaustive
     - noctx
     - promlinter
+  # TODO these fail on windows
+  # - gofmt
+  # - goimports
 
 linters-settings:
   govet:
