@@ -19,9 +19,14 @@ import (
 	"time"
 
 	"resenje.org/singleflight"
+
+	"go.uber.org/goleak"
 )
 
 func TestDo(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, string]
 
 	want := "val"
@@ -40,6 +45,9 @@ func TestDo(t *testing.T) {
 }
 
 func TestDo_concurrentAccess(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, string]
 
 	want := "val"
@@ -68,6 +76,9 @@ func TestDo_concurrentAccess(t *testing.T) {
 }
 
 func TestDo_error(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, string]
 	wantErr := errors.New("test error")
 	got, _, err := g.Do(context.Background(), "key", func(_ context.Context) (string, error) {
@@ -82,6 +93,9 @@ func TestDo_error(t *testing.T) {
 }
 
 func TestDo_multipleCalls(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, string]
 
 	want := "val"
@@ -123,6 +137,9 @@ func TestDo_multipleCalls(t *testing.T) {
 }
 
 func TestDo_callRemoval(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, string]
 
 	wantPrefix := "val"
@@ -156,6 +173,9 @@ func TestDo_callRemoval(t *testing.T) {
 }
 
 func TestDo_cancelContext(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	done := make(chan struct{})
 	defer close(done)
 
@@ -190,6 +210,9 @@ func TestDo_cancelContext(t *testing.T) {
 }
 
 func TestDo_cancelContextSecond(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	done := make(chan struct{})
 	defer close(done)
 
@@ -230,6 +253,9 @@ func TestDo_cancelContextSecond(t *testing.T) {
 }
 
 func TestDo_callDoAfterCancellation(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	done := make(chan struct{})
 	defer close(done)
 
@@ -282,6 +308,9 @@ func TestDo_callDoAfterCancellation(t *testing.T) {
 }
 
 func TestForget(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	done := make(chan struct{})
 	defer close(done)
 
@@ -324,6 +353,9 @@ func TestForget(t *testing.T) {
 }
 
 func TestDo_multipleCallsCanceled(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	const n = 5
 
 	for lastCall := 0; lastCall < n; lastCall++ {
@@ -422,6 +454,9 @@ func TestDo_multipleCallsCanceled(t *testing.T) {
 }
 
 func TestDo_preserveContextValues(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
 	var g singleflight.Group[string, any]
 
 	type KeyType string
