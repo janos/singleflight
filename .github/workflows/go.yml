@@ -12,40 +12,36 @@ jobs:
     steps:
 
     - name: Set up Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         stable: 'false'
         go-version: '1.21'
 
     - name: Checkout
-      uses: actions/checkout@v1
+      uses: actions/checkout@v4
       with:
         fetch-depth: 1
 
     - name: Cache Go modules
-      uses: actions/cache@v1
+      uses: actions/cache@v4
       with:
-        path: ~/go/pkg/mod
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
         key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.OS }}-build-${{ env.cache-name }}-
           ${{ runner.OS }}-build-
-          ${{ runner.OS }}-
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v2
+      uses: golangci/golangci-lint-action@v4
       with:
-        version: v1.54.2
-        args: --timeout 10m
-
-    - name: Vet
-      if: matrix.os == 'ubuntu-latest'
-      run: go vet -v ./...
+        version: latest
+        args: -v -c .golangci.yaml
 
     - name: Build
       env:
         CGO_ENABLED: 0
-      run: go build -ldflags "-s -w" ./...
+      run: make build
 
     - name: Test
-      run: go test -v -race ./...
+      run: make test
