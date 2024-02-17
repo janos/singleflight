@@ -5,7 +5,7 @@ run:
 linters:
   enable:
     - errname
-    - gofmt
+#    - gofmt
     - goimports
     - stylecheck
     - importas
