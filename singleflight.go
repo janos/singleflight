@@ -15,6 +15,8 @@ import (
 
 // Group represents a class of work and forms a namespace in
 // which units of work can be executed with duplicate suppression.
+// K is the type of the key used for deduplication, and V is
+// the return value of the work function.
 type Group[K comparable, V any] struct {
 	calls map[K]*call[V] // lazily initialized
 	mu    sync.Mutex     // protects calls
