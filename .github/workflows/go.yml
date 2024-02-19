@@ -40,7 +40,7 @@ jobs:
     - name: Build
       env:
         CGO_ENABLED: 0
-      run: make build
+      run: go build -ldflags "-s -w" ./...
 
     - name: Test
-      run: make test
+      run: go test -v -count=1 -race ./...
