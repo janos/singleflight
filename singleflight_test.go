@@ -281,6 +281,53 @@ func TestDo_callDoAfterCancellation(t *testing.T) {
 	}
 }
 
+func TestDo_panic(t *testing.T) {
+	// Start a few goroutines all waiting on the same call.
+	// The call just waits for a short duration then panics.
+	// Each goroutine will recover from the panic, and send the recovered
+	// value on a channel. At the end, we make sure that every goroutine
+	// panicked, not just the first goroutine that triggered the call.
+	// This matches the behavior of x/sync/singleflight.
+
+	const numGoroutines = 3
+	const panicMessage = "test-panic-message"
+
+	recoveries := make(chan any, numGoroutines)
+	ctx := context.Background()
+	var g singleflight.Group[string, string]
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer func() {
+				recoveries <- recover()
+			}()
+
+			g.Do(ctx, "key", func(_ context.Context) (string, error) {
+				time.Sleep(200 * time.Millisecond)
+				panic(panicMessage)
+			})
+			t.Errorf("This line should not be reached - Do() should have panicked")
+		}()
+	}
+
+	for i := 0; i < numGoroutines; i++ {
+		panicValue := <-recoveries
+		if err, ok := panicValue.(error); !ok || !strings.Contains(err.Error(), panicMessage) {
+			t.Errorf("got unexpected panic value %+#v", panicValue)
+		}
+	}
+
+	// The work for "key" should be complete, and we should be able to
+	// start a new call for the same key without panicking.
+
+	const want = "hello"
+	got, shared, err := g.Do(ctx, "key", func(_ context.Context) (string, error) {
+		return want, nil
+	})
+	if got != want || shared || err != nil {
+		t.Errorf("unexpected result (value=%v, shared=%v, err=%v)", got, shared, err)
+	}
+}
+
 func TestForget(t *testing.T) {
 	done := make(chan struct{})
 	defer close(done)

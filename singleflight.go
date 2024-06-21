@@ -10,8 +10,31 @@ package singleflight
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sync"
 )
+
+// A panicError is an arbitrary value recovered from a panic
+// with the stack trace during the execution of given function.
+type panicError struct {
+	value interface{}
+	stack []byte
+}
+
+// Error implements error interface.
+func (p *panicError) Error() string {
+	return fmt.Sprintf("%v\n\n%s", p.value, p.stack)
+}
+
+func (p *panicError) Unwrap() error {
+	err, ok := p.value.(error)
+	if !ok {
+		return nil
+	}
+
+	return err
+}
 
 // Group represents a class of work and forms a namespace in
 // which units of work can be executed with duplicate suppression.
@@ -62,8 +85,14 @@ func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context
 	g.mu.Unlock()
 
 	go func() {
+		defer func() {
+			if v := recover(); v != nil {
+				c.panicErr = &panicError{value: v, stack: debug.Stack()}
+			}
+			close(c.done)
+		}()
+
 		c.val, c.err = fn(callCtx)
-		close(c.done)
 	}()
 
 	return g.wait(ctx, key, c)
@@ -71,10 +100,12 @@ func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context
 
 // wait for function passed to Do to finish or context to be done.
 func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared bool, err error) {
+	var panicErr *panicError
 	select {
 	case <-c.done:
 		v = c.val
 		err = c.err
+		panicErr = c.panicErr
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
@@ -86,6 +117,11 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 	}
 	shared = c.shared
 	g.mu.Unlock()
+
+	if panicErr != nil {
+		panic(panicErr)
+	}
+
 	return v, shared, err
 }
 
@@ -103,6 +139,10 @@ type call[V any] struct {
 	// val and err hold the state about results of the function call.
 	val V
 	err error
+
+	// panicError wraps the value passed to panic() if the function call panicked.
+	// val and err should be ignored if this is non-nil.
+	panicErr *panicError
 
 	// done channel signals that the function call is done.
 	done chan struct{}
