@@ -301,11 +301,14 @@ func TestDo_panic(t *testing.T) {
 				recoveries <- recover()
 			}()
 
-			g.Do(ctx, "key", func(_ context.Context) (string, error) {
+			_, _, err := g.Do(ctx, "key", func(_ context.Context) (string, error) {
 				time.Sleep(200 * time.Millisecond)
 				panic(panicMessage)
 			})
 			t.Errorf("This line should not be reached - Do() should have panicked")
+			if err != nil {
+				t.Error(err)
+			}
 		}()
 	}
 
