@@ -382,7 +382,7 @@ func TestForgetMisbehaving(t *testing.T) {
 
 	firstCh := make(chan struct{})
 	go func() {
-		g.Do(context.Background(), "key", func(ctx context.Context) (i int, e error) {
+		_, _, _ = g.Do(context.Background(), "key", func(ctx context.Context) (i int, e error) {
 			firstStarted.Done()
 			<-firstCh
 			firstFinished.Done()
@@ -400,7 +400,7 @@ func TestForgetMisbehaving(t *testing.T) {
 	secondCh := make(chan struct{})
 	secondRunning := make(chan struct{})
 	go func() {
-		g.Do(context.Background(), "key", func(ctx context.Context) (i int, e error) {
+		_, _, _ = g.Do(context.Background(), "key", func(ctx context.Context) (i int, e error) {
 			atomic.AddInt32(&secondStarted, 1)
 			// Notify that we started
 			secondCh <- struct{}{}
