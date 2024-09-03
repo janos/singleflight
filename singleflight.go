@@ -113,7 +113,9 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 	c.counter--
 	if c.counter == 0 {
 		c.cancel()
-		delete(g.calls, key)
+		if !c.forgotten {
+			delete(g.calls, key)
+		}
 	}
 	shared = c.shared
 	g.mu.Unlock()
@@ -130,6 +132,9 @@ func (g *Group[K, V]) wait(ctx context.Context, key K, c *call[V]) (v V, shared 
 // an earlier call to complete.
 func (g *Group[K, V]) Forget(key K) {
 	g.mu.Lock()
+	if c, ok := g.calls[key]; ok {
+		c.forgotten = true
+	}
 	delete(g.calls, key)
 	g.mu.Unlock()
 }
@@ -155,4 +160,8 @@ type call[V any] struct {
 
 	// shared indicates if results val and err are passed to multiple callers.
 	shared bool
+
+	// forgotten indicates whether Forget was called with this call's key
+	// while the call was still in flight.
+	forgotten bool
 }
