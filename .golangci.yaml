@@ -1,36 +1,42 @@
+version: "2"
 run:
-  timeout: 10m
   allow-parallel-runners: true
-
 linters:
   enable:
     - errname
-    - stylecheck
+    - exhaustive
+    - gocritic
     - importas
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
     - mirror
+    - noctx
+    - promlinter
     - staticcheck
     - tagalign
     - testifylint
-    - typecheck
-    - unused
     - unconvert
     - wastedassign
     - whitespace
-    - gocritic
-    - exhaustive
-    - noctx
-    - promlinter
-  # TODO these fail on windows
-  # - gofmt
-  # - goimports
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - shadow
-      - fieldalignment
+  settings:
+    govet:
+      disable:
+        - shadow
+        - fieldalignment
+      enable-all: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
