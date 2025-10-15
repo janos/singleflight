@@ -32,17 +32,15 @@ func ExampleGroup_Do() {
 		return "result", nil
 	}
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			v, shared, err := g.Do(context.Background(), "key", fn)
 			if err != nil {
 				log.Printf("unexpected error: %v", err)
 				return
 			}
 			fmt.Printf("Got result: %s, Shared: %t\n", v, shared)
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -88,10 +86,8 @@ func ExampleGroup_Do_panic() {
 		panic("critical failure")
 	}
 
-	for i := 0; i < 3; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 3 {
+		wg.Go(func() {
 			defer func() {
 				if r := recover(); r != nil {
 					// Check if the recovered error contains the panic message and stack trace.
@@ -101,7 +97,7 @@ func ExampleGroup_Do_panic() {
 				}
 			}()
 			_, _, _ = g.Do(context.Background(), "key", fn)
-		}()
+		})
 	}
 
 	wg.Wait()

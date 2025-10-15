@@ -38,43 +38,43 @@ Here's a simple example of how to protect a function from concurrent calls.
 package main
 
 import (
-	"context"
-	"fmt"
-	"sync"
-	"time"
+    "context"
+    "fmt"
+    "sync"
+    "time"
 
-	"resenje.org/singleflight"
+    "resenje.org/singleflight"
 )
 
 func main() {
-	var g singleflight.Group[string, string]
-	var wg sync.WaitGroup
-	n := 5
+    var g singleflight.Group[string, string]
+    var wg sync.WaitGroup
+    n := 5
 
-	// Make 5 concurrent calls for the same key.
-	wg.Add(n)
-	for i := 0; i < n; i++ {
-		go func(i int) {
-			defer wg.Done()
+    // Make 5 concurrent calls for the same key.
+    wg.Add(n)
+    for i := range n {
+        wg.Go(func() {
+            defer wg.Done()
 
-			// The function will only be executed for the first call.
-			// All other calls will wait and receive the same result.
-			v, shared, err := g.Do(context.Background(), "user-profile", func(ctx context.Context) (string, error) {
-				fmt.Println("Fetching user profile from database...")
-				time.Sleep(100 * time.Millisecond) // Simulate slow DB query
-				return "User data for John Doe", nil
-			})
+            // The function will only be executed for the first call.
+            // All other calls will wait and receive the same result.
+            v, shared, err := g.Do(context.Background(), "user-profile", func(ctx context.Context) (string, error) {
+                fmt.Println("Fetching user profile from database...")
+                time.Sleep(100 * time.Millisecond) // Simulate slow DB query
+                return "User data for John Doe", nil
+            })
 
-			if err != nil {
-				fmt.Printf("Goroutine %d: encountered an error: %v\n", i, err)
-				return
-			}
+            if err != nil {
+                fmt.Printf("Goroutine %d: encountered an error: %v\n", i, err)
+                return
+            }
 
-			fmt.Printf("Goroutine %d: got result '%s' (shared: %t)\n", i, v, shared)
-		}(i)
-	}
+            fmt.Printf("Goroutine %d: got result '%s' (shared: %t)\n", i, v, shared)
+        })
+    }
 
-	wg.Wait()
+    wg.Wait()
 }
 ```
 
