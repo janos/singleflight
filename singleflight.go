@@ -74,7 +74,7 @@ func (g *Group[K, V]) Do(ctx context.Context, key K, fn func(ctx context.Context
 
 	// Replace cancellation from the user context with a cancellation
 	// controlled by the singleflight and preserve context values.
-	callCtx, cancel := context.WithCancel(withoutCancel(ctx))
+	callCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	c := &call[V]{
 		done:    make(chan struct{}),
